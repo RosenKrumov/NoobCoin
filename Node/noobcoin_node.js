@@ -16,7 +16,8 @@ var node = {};
 var allTransactions = [];
 
 class Transaction {
-	constructor(fromAddress, toAddress, value, senderPublicKey, senderSignature, transactionHash, dateReceived, minedInBlockIndex, paid) {
+	constructor(fromAddress, toAddress, value, senderPublicKey, senderSignature, 
+			transactionHash, dateReceived, minedInBlockIndex, paid) {
 		this.fromAddress = fromAddress;
 		this.toAddress = toAddress;
 		this.value = value;
@@ -30,7 +31,8 @@ class Transaction {
 }
 
 class Block {
-	constructor(index, transactions, difficulty, previousBlockHash, minedBy, blockDataHash, nonce, dateCreated, blockHash) {
+	constructor(index, transactions, difficulty, previousBlockHash, minedBy, 
+			blockDataHash, nonce, dateCreated, blockHash) {
 		this.index = index;
 		this.transactions = transactions;
 		this.difficulty = difficulty;
@@ -72,7 +74,8 @@ class Node {
 
 var startNode = () => {
 	var genesisTransactionHash = CryptoJS.SHA256(0 + parseInt(FAUCET_ADDRESS, 16) + INITIAL_COINS_DISTRIBUTION + 
-									parseInt(FAUCET_PUBKEY, 16) + parseInt(FAUCET_SIGNATURE[0], 16) + parseInt(FAUCET_SIGNATURE[1], 16)).toString();
+					parseInt(FAUCET_PUBKEY, 16) + parseInt(FAUCET_SIGNATURE[0], 16) + 
+					parseInt(FAUCET_SIGNATURE[1], 16)).toString();
 	
 	var genesisTransactionHashDate = new Date().getTime() / 1000;
 	var genesisTransaction = new Transaction(0, FAUCET_ADDRESS, INITIAL_COINS_DISTRIBUTION, FAUCET_PUBKEY, FAUCET_SIGNATURE,
@@ -91,7 +94,8 @@ var startNode = () => {
 							genesisBlockPrevHash + genesisBlockMinedBy).toString();
 							
 	var genesisBlockHash = CryptoJS.SHA256(genesisBlockIndex + genesisBlockTransactionHashes + DIFFICULTY + 
-							genesisBlockPrevHash + genesisBlockMinedBy + genesisBlockNonce + genesisBlockDateCreated).toString();
+							genesisBlockPrevHash + genesisBlockMinedBy + genesisBlockNonce + 
+							genesisBlockDateCreated).toString();
 	
 	var genesisBlock = new Block(genesisBlockIndex, genesisBlockTransactions, DIFFICULTY, genesisBlockPrevHash, genesisBlockMinedBy, 
 							genesisBlockDataHash, genesisBlockNonce, genesisBlockDateCreated, genesisBlockHash);
@@ -124,7 +128,7 @@ var initHttpServer = () => {
 	});
 	
 	app.post('/transactions/new', (req, res) => {
-		
+		//TODO
 	});
 	
 	app.get('/transactions/:hash/info', (req,res) => {
@@ -141,12 +145,12 @@ var initHttpServer = () => {
 	});
 	
 	app.post('/blocks/notify', (req, res) => {
-	
+		//TODO
 	});
 	
 	app.get('/peers', (req, res) => res.send(JSON.stringify(node.peers)));
 	app.post('/peers', (req, res) => {
-	
+		//TODO
 	});
 	
 	app.listen(http_port, () => console.log('Listening http on port: ' + http_port));
