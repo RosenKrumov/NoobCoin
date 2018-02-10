@@ -9,8 +9,8 @@ class NoobCredentials(object):
     def read():
         print("Input wallet mnemonic: ", end="")
         mnemonic = input().split(' ')
-        #if not NoobCredentials.is_valid(mnemonic):
-        #    raise ValueError("Invalid mnemonic provided")
+        if not NoobCredentials.is_valid(mnemonic):
+            raise ValueError("Invalid mnemonic provided")
 
         print("Input password: ", end="")
         password = input()

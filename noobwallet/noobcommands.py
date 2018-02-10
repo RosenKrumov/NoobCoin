@@ -1,6 +1,7 @@
 import binascii
 import noobcrypto
 from noobcredentials import NoobCredentials
+import noobtransaction
 
 def create_wallet():
     mnemonic = noobcrypto.generate_mnemonic()
@@ -24,5 +25,27 @@ def show_addresses(count):
         print(e)
 
     for i in range(count):
-        noobaddr = noobcrypto.derive_address(credentials, i)
-        print(f"address: {noobaddr.addr}\n\tskey: {noobaddr.skey}\n\tpkey: {noobaddr.pkey}")
+        noobaddr_info = noobcrypto.derive_address(credentials, i)
+        print(f"address {i}: {noobaddr_info.addr}")
+        print(f"\tskey: {noobaddr_info.skey}")
+        print(f"\tpkey: {noobaddr_info.pkey}")
+
+def make_transaction():
+    credentials = None
+    try:
+        credentials = NoobCredentials.read()
+    except ValueError as e:
+        print(e)
+
+    print("Which address index to use? ", end="")
+    addr_index = int(input())
+    sender_addr_info = noobcrypto.derive_address(credentials, addr_index)
+
+    print("Input recipient's address: ", end="")
+    recipient_addr = input()
+
+    print("How much noob coins would you like to send? ", end="")
+    amount = int(input())
+
+    noobtransaction.send(sender_addr_info, recipient_addr, amount)
+

@@ -2,7 +2,7 @@ import hashlib, hmac, math, binascii
 from pycoin.ecdsa import generator_secp256k1
 import uuid
 
-class NoobAddress(object):
+class NoobAddressInfo(object):
     def __init__(self, skey, pkey, addr):
         self.skey = skey
         self.pkey = pkey
@@ -59,7 +59,7 @@ def derive_address(credentials, addr_index):
     pkey = derive_pkey(skey)
     addr = pkey_to_addr(pkey)
 
-    return NoobAddress(skey, pkey, addr)
+    return NoobAddressInfo(skey, pkey, addr)
 
 def derive_skey(key, password, der_path):
     target_key_length = 64
