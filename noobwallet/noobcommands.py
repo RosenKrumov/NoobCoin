@@ -8,3 +8,13 @@ def create_wallet():
     for word in mnemonic:
         print(word, end=" ")
     print()
+
+def show_balance():
+    print("show balance")
+    # TODO
+    pass
+
+def show_addresses():
+    print("show addresses")
+    # TODO
+    pass
