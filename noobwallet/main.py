@@ -4,6 +4,9 @@ def create_wallet():
     pass
 
 def parse_args(args):
+    if (args.node):
+        noobcommands.connect(args.node)
+
     if args.create:
         noobcommands.create_wallet()
     elif args.balance:
@@ -17,6 +20,7 @@ if __name__ == '__main__':
     from argparse import ArgumentParser
 
     parser = ArgumentParser()
+    parser.add_argument('-n', '--node', type=str, help='node to connect to', required=True)
     parser.add_argument('-c', '--create', action='store_true', help='create wallet')
     parser.add_argument('-b', '--balance', action='store_true', help='see balance')
     parser.add_argument('-s', '--send', action='store_true', help='make a transaction')

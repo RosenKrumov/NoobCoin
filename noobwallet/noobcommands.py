@@ -2,6 +2,11 @@ import binascii
 import noobcrypto
 from noobcredentials import NoobCredentials
 import noobtransaction
+import os
+
+def connect(addr: str):
+    print(addr)
+    # TODO: send http request to /info and see that everything is OK. Then store addr
 
 def create_wallet():
     mnemonic = noobcrypto.generate_mnemonic()
