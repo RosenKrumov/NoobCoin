@@ -2,7 +2,7 @@ import binascii
 import requests
 import noobcrypto
 from noobcredentials import NoobCredentials
-import noobtransaction
+import noobcomms
 import os
 
 def connect(url: str):
@@ -32,8 +32,19 @@ def create_wallet():
     print()
 
 def show_balance():
-    print("show balance")
-    # TODO
+    credentials = None
+    try:
+        credentials = NoobCredentials.read()
+    except ValueError as e:
+        print(e)
+
+    print("Which address index to use? ", end="")
+    addr_index = int(input())
+    wallet_addr_info = noobcrypto.get_address_info(credentials, addr_index)
+
+    balance = noobcomms.get_balance(node_url, wallet_addr_info)
+    print(f"Your balance for address {wallet_addr_info.addr} is {balance} NC")
+
     pass
 
 def show_addresses(count):
@@ -44,7 +55,7 @@ def show_addresses(count):
         print(e)
 
     for i in range(count):
-        noobaddr_info = noobcrypto.derive_address(credentials, i)
+        noobaddr_info = noobcrypto.get_address_info(credentials, i)
         print(f"address {i}: {noobaddr_info.addr}")
         print(f"\tskey: {noobaddr_info.skey}")
         print(f"\tpkey: {noobaddr_info.pkey}")
@@ -58,7 +69,7 @@ def make_transaction():
 
     print("Which address index to use? ", end="")
     addr_index = int(input())
-    sender_addr_info = noobcrypto.derive_address(credentials, addr_index)
+    wallet_addr_info = noobcrypto.get_address_info(credentials, addr_index)
 
     print("Input recipient's address: ", end="")
     recipient_addr = input()
@@ -66,5 +77,5 @@ def make_transaction():
     print("How much noob coins would you like to send? ", end="")
     amount = int(input())
 
-    noobtransaction.send(node_url, sender_addr_info, recipient_addr, amount)
+    noobcomms.send_transaction(node_url, wallet_addr_info, recipient_addr, amount)
 

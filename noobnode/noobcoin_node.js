@@ -227,7 +227,6 @@ var createPendingTransaction = (transactionData) => {
         addressHasEnoughMoney(transactionData.fromAddress, transactionData.amount);
     var keysAreValid = validateKeys(transactionData.pkey, transactionData.signature);
     var addressesAreValid = validateAddresses(transactionData.fromAddress, transactionData.toAddress);
-    console.log(transactionData);
 
     if(hasMoneyForTransaction && keysAreValid && addressesAreValid)
     {

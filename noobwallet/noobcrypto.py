@@ -50,7 +50,7 @@ def encode_mnemonic(mnemonic):
 
     return key.to_bytes(17, 'big')
 
-def derive_address(credentials, addr_index):
+def get_address_info(credentials, addr_index):
     encoded_mnem = encode_mnemonic(credentials.mnemonic)
     encoded_pass = str.encode(credentials.password)
     encoded_der_path = str.encode(f"m/44'/14'/{addr_index}'")
