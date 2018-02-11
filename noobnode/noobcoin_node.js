@@ -6,10 +6,8 @@ var bodyParser = require('body-parser');
 var http_port = process.env.HTTP_PORT || 3001;
 var node_name = process.env.NODE_NAME || "NoobCoin Node";
 var DIFFICULTY = 4;
-var FAUCET_ADDRESS = '0x756F45E3FA69347A9A973A725E3C98bC4db0b5a0'; //TODO
-var FAUCET_PUBKEY = '0x756F45E3FA69347A9A973A725E3C98bC4db0b5a0'; //TODO
-var FAUCET_SIGNATURE = ['0x756F45E3FA69347A9A973A725E3C98bC4db0b5a0', '0x756F45E3FA69347A9A973A725E3C98bC4db0b5a0']; //TODO
-var INITIAL_COINS_DISTRIBUTION = 100000000;
+var FAUCET_ADDRESS = 'b825e4430d85fbca3f7d50cd82d1ab91dce9e287';
+var INITIAL_COINS = 100000000;
 
 var node = {};
 
@@ -83,7 +81,7 @@ var initHttpServer = () => {
         }
     });
 
-    app.get('/mining/get-block/:address', (req, res) => {
+    app.get('/mining/get/:address', (req, res) => {
         if (!node.miningJobs[req.params.address]) {
             // TODO: Add miner reward
             var block = new Block(
@@ -103,7 +101,7 @@ var initHttpServer = () => {
         }
     });
 
-    app.post('/mining/submit-block/:address', (req, res) => {
+    app.post('/mining/submit/:address', (req, res) => {
         if (!node.miningJobs[req.params.address])
         {
             res.status(400).send('no mining job is assigned');
@@ -149,8 +147,10 @@ var initHttpServer = () => {
         }
     });
 
-    app.get('/transactions/:hash', (req,res) => {
-        var hash = req.params.hash;
+    // TODO: Add transaction history endpoint for address
+    app.get('/transactions/:address', (req,res) => {
+        var address = req.params.address;
+        /*
         if(allTransactions.some(t => t.hash == hash))
         {
             res.send(JSON.stringify(allTransactions.find(t => t.hash == hash)));
@@ -160,9 +160,8 @@ var initHttpServer = () => {
             res.status(404)
                 .send('Not found');
         }
+        */
     });
-
-    // TODO: Add transaction history endpoint for address
 
     // TODO: Do with web sockets similar to naivechain
     app.post('/blocks/notify', (req, res) => {
@@ -230,12 +229,9 @@ var createPendingTransaction = (transactionData) => {
 
     if(hasMoneyForTransaction && keysAreValid && addressesAreValid)
     {
-        return new Transaction(transactionData.fromAddress,
-                               transactionData.toAddress,
-                               transactionData.amount,
-                               transactionData.date,
-                               transactionData.pkey,
-                               transactionData.signature);
+        return new Transaction(
+            transactionData.fromAddress, transactionData.toAddress, transactionData.amount,
+            transactionData.date, transactionData.pkey, transactionData.signature);
     }
     else
     {
@@ -269,7 +265,7 @@ var addPeer = (peerData) => {
 
 var startNode = () => {
     var genesisTransaction = new Transaction(
-        "0", FAUCET_ADDRESS, INITIAL_COINS_DISTRIBUTION, new Date().toUTCString(), FAUCET_PUBKEY, FAUCET_SIGNATURE);
+        "0", FAUCET_ADDRESS, INITIAL_COINS, new Date().toUTCString(), "0", "0");
 
     var genesisBlock =
         new Block(0, [ genesisTransaction ], 0, 0, 0, new Date().toUTCString());

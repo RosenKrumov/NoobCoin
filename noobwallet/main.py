@@ -1,8 +1,5 @@
 import noobcommands
 
-def create_wallet():
-    pass
-
 def parse_args(args):
     if not noobcommands.connect(args.node):
         return
