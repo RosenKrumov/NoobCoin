@@ -162,6 +162,9 @@ var initHttpServer = () => {
         }
     });
 
+    // TODO: Add transaction history endpoint for address
+
+    // TODO: Do with web sockets similar to naivechain
     app.post('/blocks/notify', (req, res) => {
         //TODO
     });
