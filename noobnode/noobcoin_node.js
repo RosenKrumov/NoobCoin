@@ -215,12 +215,6 @@ var processBlock = (minerData, minerAddress) => {
             });
 
         return true;
-
-        /* TODO
-        block.transactions.forEach(function(t) {
-            node.balances[t['fromAddress']] -= t['amount'];
-            node.balances[t['toAddress']] += t['amount'];
-        });*/
     }
     else
     {
