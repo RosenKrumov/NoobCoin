@@ -64,16 +64,6 @@ class Node {
     }
 }
 
-var startNode = () => {
-    var genesisTransaction = new Transaction(
-        "0", FAUCET_ADDRESS, INITIAL_COINS_DISTRIBUTION, FAUCET_PUBKEY, FAUCET_SIGNATURE);
-
-    var genesisBlock =
-        new Block(0, [ genesisTransaction ], 0, 0, 0, new Date().toUTCString());
-
-    node = new Node(node_name, genesisBlock);
-}
-
 var initHttpServer = () => {
     var app = express();
     app.use(bodyParser.json());
@@ -135,7 +125,10 @@ var initHttpServer = () => {
 
     app.get('/balance/:address', (req, res) => {
         var address = req.params.address;
-        //TODO
+        var balance = getBalanceOf(address);
+
+        var result = { 'address': address, 'balance': balance };
+        res.status(200).send(result);
     });
 
     app.post('/transactions/new', (req, res) => {
@@ -181,20 +174,21 @@ var initHttpServer = () => {
     app.listen(http_port, () => console.log('Listening http on port: ' + http_port));
 }
 
-var addressHasEnoughMoney = (address, amount) => {
-    // TODO
-    return true;
-    //return (node.balances['address'] >= amount);
-}
+var getBalanceOf = (address) => {
+    var balance = 0;
+    node.blocks.forEach(function(b) {
+        b.transactions.forEach(function(t) {
+            if (t.fromAddress == address) {
+                balance -= t.amount;
+            }
 
-var validateKeys = (pubKey, signature) => {
-    //TODO validation of public key and signature
-    return true;
-}
+            if (t.toAddress == address) {
+                balance += t.amount;
+            }
+        });
+    });
 
-var validateAddresses = (fromAddress, toAddress) => {
-    // TODO: actual validation of address
-    return true;
+    return balance;
 }
 
 var processBlock = (minerData, minerAddress) => {
@@ -251,12 +245,38 @@ var createPendingTransaction = (transactionData) => {
     }
 }
 
+var addressHasEnoughMoney = (address, amount) => {
+    // TODO
+    return true;
+    //return (node.balances['address'] >= amount);
+}
+
+var validateKeys = (pubKey, signature) => {
+    //TODO validation of public key and signature
+    return true;
+}
+
+var validateAddresses = (fromAddress, toAddress) => {
+    // TODO: actual validation of address
+    return true;
+}
+
 var synchronizeWithPeer = () => {
 
 }
 
 var addPeer = (peerData) => {
 
+}
+
+var startNode = () => {
+    var genesisTransaction = new Transaction(
+        "0", FAUCET_ADDRESS, INITIAL_COINS_DISTRIBUTION, FAUCET_PUBKEY, FAUCET_SIGNATURE);
+
+    var genesisBlock =
+        new Block(0, [ genesisTransaction ], 0, 0, 0, new Date().toUTCString());
+
+    node = new Node(node_name, genesisBlock);
 }
 
 startNode();
