@@ -14,13 +14,13 @@ var INITIAL_COINS_DISTRIBUTION = 100000000;
 var node = {};
 
 class Transaction {
-    constructor(fromAddress, toAddress, amount, senderPublicKey, senderSignature) {
+    constructor(fromAddress, toAddress, amount, dateReceived, senderPublicKey, senderSignature) {
         this.fromAddress = fromAddress;
         this.toAddress = toAddress;
         this.amount = amount;
+        this.dateReceived = dateReceived;
         this.senderPublicKey = senderPublicKey;
         this.senderSignature = senderSignature;
-        this.dateReceived = new Date().toUTCString();
         this.transactionHash = this.calc_transaction_hash();
     }
 
@@ -233,6 +233,7 @@ var createPendingTransaction = (transactionData) => {
         return new Transaction(transactionData.fromAddress,
                                transactionData.toAddress,
                                transactionData.amount,
+                               transactionDate.date,
                                transactionData.senderPubKey,
                                transactionData.senderSignature);
     }
@@ -268,7 +269,7 @@ var addPeer = (peerData) => {
 
 var startNode = () => {
     var genesisTransaction = new Transaction(
-        "0", FAUCET_ADDRESS, INITIAL_COINS_DISTRIBUTION, FAUCET_PUBKEY, FAUCET_SIGNATURE);
+        "0", FAUCET_ADDRESS, INITIAL_COINS_DISTRIBUTION, new Date().toUTCString(), FAUCET_PUBKEY, FAUCET_SIGNATURE);
 
     var genesisBlock =
         new Block(0, [ genesisTransaction ], 0, 0, 0, new Date().toUTCString());
