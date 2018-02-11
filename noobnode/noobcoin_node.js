@@ -14,10 +14,10 @@ var INITIAL_COINS_DISTRIBUTION = 100000000;
 var node = {};
 
 class Transaction {
-    constructor(fromAddress, toAddress, value, senderPublicKey, senderSignature) {
+    constructor(fromAddress, toAddress, amount, senderPublicKey, senderSignature) {
         this.fromAddress = fromAddress;
         this.toAddress = toAddress;
-        this.value = value;
+        this.amount = amount;
         this.senderPublicKey = senderPublicKey;
         this.senderSignature = senderSignature;
         this.dateReceived = new Date().toUTCString();
@@ -25,9 +25,9 @@ class Transaction {
     }
 
     calc_transaction_hash() {
-        return "" + this.fromAddress + this.toAddress +
-                    this.value + this.senderPublicKey + this.senderSignature +
-                    this.dateReceived;
+        return CryptoJS.SHA256("" + this.fromAddress + this.toAddress +
+                    this.amount + this.senderPublicKey + this.senderSignature +
+                    this.dateReceived).toString();
     }
 }
 
@@ -94,19 +94,34 @@ var initHttpServer = () => {
     });
 
     app.get('/mining/get-block/:address', (req, res) => {
+        if (!node.miningJobs[req.params.address]) {
+            // TODO: Add miner reward
+            var block = new Block(
+                node.blocks[node.blocks.length - 1].index + 1,
+                node.pendingTransactions,
+                DIFFICULTY,
+                node.blocks[node.blocks.length - 1].blockHash,
+                0,
+                0);
 
+            node.miningJobs[req.params.address] = block;
+            res.status(200).send(JSON.stringify(block));
+        }
+        else
+        {
+            res.status(400).send('miner already has a mining job');
+        }
     });
 
     app.post('/mining/submit-block/:address', (req, res) => {
-        var minerAddress = req.params.address;
-        var miningJobIndex = node.miningJobs.map(
-            function(j) {
-                return j['address'];
-            }).indexOf(minerAddress);
+        if (!node.miningJobs[req.params.address])
+        {
+            res.status(400).send('no mining job is assigned');
+            return;
+        }
 
-        node.miningJobs.splice(miningJobIndex, 1);
-
-        var isBlockAccepted = processBlock(req.body.data);
+        var isBlockAccepted = processBlock(req.body, req.params.address);
+        delete node.miningJobs[req.params.address];
 
         if(isBlockAccepted)
         {
@@ -118,13 +133,13 @@ var initHttpServer = () => {
         }
     });
 
-    app.get('/balance/:address/confirmations/:confirmations', (req, res) => {
+    app.get('/balance/:address', (req, res) => {
         var address = req.params.address;
         //TODO
     });
 
     app.post('/transactions/new', (req, res) => {
-        var newTransaction = addPendingTransaction(req.body.data);
+        var newTransaction = createPendingTransaction(req.body);
         if (!newTransaction)
         {
             res.status(400).send('Bad request');
@@ -141,7 +156,7 @@ var initHttpServer = () => {
         }
     });
 
-    app.get('/transactions/:hash/info', (req,res) => {
+    app.get('/transactions/:hash', (req,res) => {
         var hash = req.params.hash;
         if(allTransactions.some(t => t.hash == hash))
         {
@@ -166,12 +181,15 @@ var initHttpServer = () => {
     app.listen(http_port, () => console.log('Listening http on port: ' + http_port));
 }
 
-var addressHasEnoughMoney = (address, value) => {
-    return (node.balances['address'] >= value);
+var addressHasEnoughMoney = (address, amount) => {
+    // TODO
+    return true;
+    //return (node.balances['address'] >= amount);
 }
 
 var validateKeys = (pubKey, signature) => {
     //TODO validation of public key and signature
+    return true;
 }
 
 var validateAddresses = (fromAddress, toAddress) => {
@@ -179,25 +197,33 @@ var validateAddresses = (fromAddress, toAddress) => {
     return true;
 }
 
-var processBlock = (minerData) => {
-    var block = node.miningJobs[minerData.address];
+var processBlock = (minerData, minerAddress) => {
+    var block = node.miningJobs[minerAddress];
 
     block.nonce = minerData.nonce;
     block.dateCreated = minerData.dateCreated;
     block.blockHash = minerData.blockHash;
 
-    var blockHash = CryptoJS.SHA256("" + block.blockDataHash + nonce).toString();
-    if(blockHash.substring(0, DIFFICULTY) == Array(DIFFICULTY + 1).join("0"))
+    var blockHash = CryptoJS.SHA256("" + block.blockDataHash + block.nonce + block.dateCreated).toString();
+    // TODO: validation of block
+    //if(blockHash.substring(0, DIFFICULTY) == Array(DIFFICULTY + 1).join("0"))
+    if (true)
     {
         node.blocks.push(block);
+        node.pendingTransactions =
+            node.pendingTransactions.filter(function(t) {
+                return block.transactions.filter(function(bt) {
+                    return bt.transactionHash == t.transactionHash;
+                }).length == 0;
+            });
 
-        block.transactions.forEach(t =>
-                        node.pendingTransactions.splice(node.pendingTransactions.indexOf(t['transactionHash']), 1)); //TODO: CHECK SYNTAX
+        return true;
 
+        /* TODO
         block.transactions.forEach(function(t) {
-            node.balances[t['fromAddress']] -= t['value'];
-            node.baalnces[t['toAddress']] += t['value'];
-        });
+            node.balances[t['fromAddress']] -= t['amount'];
+            node.balances[t['toAddress']] += t['amount'];
+        });*/
     }
     else
     {
@@ -207,7 +233,7 @@ var processBlock = (minerData) => {
 
 var createPendingTransaction = (transactionData) => {
     var hasMoneyForTransaction =
-        addressHasMoney(transactionData.fromAddress, transactionData.value);
+        addressHasEnoughMoney(transactionData.fromAddress, transactionData.amount);
     var keysAreValid = validateKeys(transactionData.senderPubKey, transactionData.senderSignature);
     var addressesAreValid = validateAddresses(transactionData.fromAddress, transactionData.toAddress);
 
@@ -215,13 +241,12 @@ var createPendingTransaction = (transactionData) => {
     {
         return new Transaction(transactionData.fromAddress,
                                transactionData.toAddress,
-                               transactionData.value,
+                               transactionData.amount,
                                transactionData.senderPubKey,
                                transactionData.senderSignature);
     }
     else
     {
-        // TODO: Throw exception
         return false;
     }
 }
