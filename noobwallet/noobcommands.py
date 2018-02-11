@@ -1,12 +1,26 @@
 import binascii
+import requests
 import noobcrypto
 from noobcredentials import NoobCredentials
 import noobtransaction
 import os
 
-def connect(addr: str):
-    print(addr)
-    # TODO: send http request to /info and see that everything is OK. Then store addr
+def connect(url: str):
+    try:
+        response = requests.get(url = f"{url}/info");
+    except Exception as e:
+        print('Failed to establish connection with node. Aborting')
+        return False
+
+    if response.status_code == 200:
+        print("Successfully connected to node")
+    else:
+        print(f"Failed to connect to node. Server status code {response.status_code}")
+
+    global node_url
+    node_url = url
+
+    return response.status_code == 200
 
 def create_wallet():
     mnemonic = noobcrypto.generate_mnemonic()
@@ -52,5 +66,5 @@ def make_transaction():
     print("How much noob coins would you like to send? ", end="")
     amount = int(input())
 
-    noobtransaction.send(sender_addr_info, recipient_addr, amount)
+    noobtransaction.send(node_url, sender_addr_info, recipient_addr, amount)
 

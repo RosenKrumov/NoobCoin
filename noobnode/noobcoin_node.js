@@ -225,17 +225,18 @@ var processBlock = (minerData, minerAddress) => {
 var createPendingTransaction = (transactionData) => {
     var hasMoneyForTransaction =
         addressHasEnoughMoney(transactionData.fromAddress, transactionData.amount);
-    var keysAreValid = validateKeys(transactionData.senderPubKey, transactionData.senderSignature);
+    var keysAreValid = validateKeys(transactionData.pkey, transactionData.signature);
     var addressesAreValid = validateAddresses(transactionData.fromAddress, transactionData.toAddress);
+    console.log(transactionData);
 
     if(hasMoneyForTransaction && keysAreValid && addressesAreValid)
     {
         return new Transaction(transactionData.fromAddress,
                                transactionData.toAddress,
                                transactionData.amount,
-                               transactionDate.date,
-                               transactionData.senderPubKey,
-                               transactionData.senderSignature);
+                               transactionData.date,
+                               transactionData.pkey,
+                               transactionData.signature);
     }
     else
     {

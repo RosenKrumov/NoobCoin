@@ -4,8 +4,8 @@ def create_wallet():
     pass
 
 def parse_args(args):
-    if (args.node):
-        noobcommands.connect(args.node)
+    if not noobcommands.connect(args.node):
+        return
 
     if args.create:
         noobcommands.create_wallet()
