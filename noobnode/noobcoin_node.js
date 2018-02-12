@@ -308,14 +308,16 @@ var processMiningJob = (minerData, minerAddress) => {
 }
 
 var createPendingTransaction = (transactionData) => {
-    var hasMoneyForTransaction =
-        addressHasEnoughMoney(transactionData.fromAddress, transactionData.amount);
-    var keysAreValid = validateKeys(transactionData);
-    var addressesAreValid = validateAddresses(transactionData);
+    console.log("Transaction submitted: " + JSON.stringify(transactionData));
 
-    console.log("Transaction submitted: " + transactionData);
-    if(hasMoneyForTransaction && keysAreValid && addressesAreValid)
-    {
+    console.log("Enough money?: " + addressHasEnoughMoney(transactionData));
+    console.log("Keys are valid?: " + keysAreValid(transactionData));
+    console.log("Addresses are valid?: " + addressesAreValid(transactionData));
+
+    if (addressHasEnoughMoney(transactionData) &&
+            keysAreValid(transactionData) &&
+            addressesAreValid(transactionData)) {
+
         return new Transaction(
             transactionData.fromAddress, transactionData.toAddress, transactionData.amount,
             transactionData.date, transactionData.pkey, transactionData.signature);
@@ -326,44 +328,45 @@ var createPendingTransaction = (transactionData) => {
     }
 }
 
-var addressHasEnoughMoney = (address, amount) => {
-    var balance = getBalanceOf(address);
-    //return (balance >= amount);
+var addressHasEnoughMoney = (transactionData) => {
     return true;
-
+    //return getBalanceOf(transactionData.fromAddress) >= transactionData.amount;
 }
 
-var validateKeys = (transactionData) => {
+var keysAreValid = (transactionData) => {
+    return true;
+    /*
     var shaMsg = CryptoJS.SHA256("" + transactionData.fromAddress + transactionData.toAddress +
-                                transactionData.amount + transactionData.dateReceived).toString();
-    //var isValid = ecdsa.verify(shaMsg, transactionData.senderSignature, transactionData.senderPublicKey);
-    return true;
+                                transactionData.amount + transactionData.date).toString();
+
+    return ecdsa.verify(shaMsg, transactionData.signature, transactionData.pkey);
+    */
 }
 
-var validateAddresses = (transactionData) => {
-    return true;
-
+var addressesAreValid = (transactionData) => {
     var senderAddress = transactionData.fromAddress;
     var recipientAddress = transactionData.toAddress;
-    var addressesAreValidHex = false;
-    var senderAddressIsValid = false;
+    var isValidHex = false;
+    var isValidAddress = false;
 
     if (senderAddress.length > 0 && recipientAddress.length > 0 &&
         !isNaN(parseInt(senderAddress, 16)) && !isNaN(parseInt(recipientAddress, 16)))
     {
-        addressesAreValidHex = true;
+        isValidHex = true;
     }
 
-    if (CryptoJS.RIPEMD160("" + transactionData.senderPublicKey).toString() == senderAddress)
+    if (CryptoJS.RIPEMD160("" + transactionData.pkey).toString() == senderAddress)
     {
-        senderAddressIsValid = true;
+        isValidAddress = true;
     }
 
-    return addressesAreValidHex && senderAddressIsValid;
+    console.log("addresses valid hex: " + isValidHex);
+    console.log("sender address is valid ripemd160: " + isValidAddress);
+
+    return isValidHex && isValidAddress;
 }
 
 var handleResponse = (message) => {
-    // TODO: check if block sort is needed
     var receivedBlocks = JSON.parse(message.data).sort((b1, b2) => (b1.index - b2.index));
     var latestBlockReceived = receivedBlocks[receivedBlocks.length - 1];
 
