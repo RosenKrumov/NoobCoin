@@ -1,0 +1,35 @@
+html
+  head
+    link(rel='stylesheet', href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css", type='text/css')
+    title=title
+  body
+    div.jumbotron.text-center
+      h1=message
+    div.container
+      a(href="/"): p Home
+      div.row
+        div.col-sm-12.text-center
+           ul.list-group
+              li.list-group-item
+                h3 Block ##{block.index}
+                p.text-right Date:#{block.dateCreated}
+                p.text-left Hash:#{block.blockHash}
+                p.text-left Block data hash: #{block.blockDataHash}
+                p.text-left Difficulty: #{block.difficulty}
+                p.text-left Previous block hash: #{block.previousBlockHash}
+                p.text-left Nonce: #{block.nonce}
+                a(href="/blocks/"+block.index+"/transactions"): p.text-right Txns: #{block.transactions.length}
+                p.text-right Reward: 50 NC
+      div.row
+        h3.text-center Block ##{block.index} transactions:
+        div.col-sm-12.text-center
+            ul.list-group
+               each transaction in block.transactions	
+                 li.list-group-item
+                   a(href="/transactions/"+transaction.transactionHash): h3 Transaction ##{transaction.transactionHash}
+                   p.text-right Date:#{transaction.dateReceived}
+                   p.text-left From:#{transaction.fromAddress}
+                   p.text-right To:#{transaction.toAddress}
+                   p.text-right Amount:#{transaction.amount}
+					
+		

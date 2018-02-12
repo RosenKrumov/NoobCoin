@@ -1,0 +1,20 @@
+html
+  head
+    link(rel='stylesheet', href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css", type='text/css')
+    title=title
+  body
+    div.jumbotron.text-center
+      h1=message
+    div.container
+      a(href="/"): p Home
+      div.row
+        div.col-sm-12.text-center
+            ul.list-group
+             li.list-group-item
+               h3 Transaction ##{transaction.transactionHash}
+               p.text-right Date:#{transaction.dateReceived}
+               p.text-left From:#{transaction.fromAddress}
+               p.text-right To:#{transaction.toAddress}
+               p.text-right Amount:#{transaction.amount}
+					
+		
