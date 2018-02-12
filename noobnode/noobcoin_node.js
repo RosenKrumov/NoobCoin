@@ -215,15 +215,15 @@ var initHttpServer = () => {
         }
     });
 
-    app.get('/transactions/:address', (req,res) => {
+    app.get('/history/:address', (req, res) => {
         var address = req.params.address;
         var transactions = [];
         node.blocks.forEach(function(b) {
-        b.transactions.forEach(function(t) {
-            if (t.fromAddress == address ||
-            	t.toAddress == address) {
-				transactions.push(t);
-            }
+            b.transactions.forEach(function(t) {
+                if (t.fromAddress == address || t.toAddress == address) {
+                    transactions.push(t);
+                }
+            });
         });
 
         res.status(200).send(JSON.stringify(transactions));
@@ -233,21 +233,21 @@ var initHttpServer = () => {
         var transactionHash = req.params.hash;
         var response = null;
         node.blocks.forEach(function(b) {
-        b.transactions.forEach(function(t) {
-            if (t.transactionHash == transactionHash) {
-				response = t;
-            }
+            b.transactions.forEach(function(t) {
+                if (t.transactionHash == transactionHash) {
+                    response = t;
+                }
+            });
         });
 
         if(response == null)
         {
-        	res.status(404).send('Not found');
+            res.status(404).send('Not found');
         }
         else
         {
-	        res.status(200).send(JSON.stringify(response));
+            res.status(200).send(JSON.stringify(response));
         }
-
     });
 
     app.get('/peers', (req, res) => res.send(JSON.stringify(node.peers)));
@@ -292,18 +292,9 @@ var processMiningJob = (minerData, minerAddress) => {
     block.blockHash = minerData.blockHash;
 
     var blockHash = CryptoJS.SHA256("" + block.blockDataHash + block.nonce + block.dateCreated).toString();
-<<<<<<< HEAD
-
-    // TODO: validation of block - DONE
     //if(blockHash.substring(0, DIFFICULTY) == Array(DIFFICULTY + 1).join("0") &&
     //    lastBlock.index + 1 == block.index &&
     //    lastBlock.blockHash == block.previousBlockHash)
-=======
-
-    //if(blockHash.substring(0, DIFFICULTY) == Array(DIFFICULTY + 1).join("0") &&
-    //	lastBlock.index + 1 == block.index &&
-    //	lastBlock.blockHash == block.previousBlockHash)
->>>>>>> c652e95e3c46fc589f231fa4b0bff282ea3f375e
     if (true)
     {
         node.blocks.push(block);
@@ -348,9 +339,9 @@ var addressHasEnoughMoney = (address, amount) => {
 }
 
 var validateKeys = (transactionData) => {
-	var shaMsg = CryptoJS.SHA256("" + transactionData.fromAddress + transactionData.toAddress +
-								transactionData.amount + transactionData.dateReceived).toString();
-	var isValid = ecdsa.verify(shaMsg, transactionData.senderSignature, transactionData.senderPublicKey);
+    var shaMsg = CryptoJS.SHA256("" + transactionData.fromAddress + transactionData.toAddress +
+                                transactionData.amount + transactionData.dateReceived).toString();
+    var isValid = ecdsa.verify(shaMsg, transactionData.senderSignature, transactionData.senderPublicKey);
     return isValid;
 }
 
@@ -358,24 +349,23 @@ var validateAddresses = (transactionData) => {
     var senderAddress = transactionData.fromAddress;
     var recipientAddress = transactionData.toAddress;
     var addressesAreValidHex = false;
-	var senderAddressIsValid = false;
+    var senderAddressIsValid = false;
 
     if(senderAddress.length > 0 && recipientAddress.length > 0 &&
-    	!isNaN(parseInt(senderAddress, 16)) && !isNaN(parseInt(recipientAddress, 16)))
-   	{
-   		addressesAreValidHex = true;
-   	}
+        !isNaN(parseInt(senderAddress, 16)) && !isNaN(parseInt(recipientAddress, 16)))
+       {
+           addressesAreValidHex = true;
+       }
 
-   	if(CryptoJS.RIPEMD160("" + transactionData.senderPublicKey).toString() == senderAddress)
-   	{
-   		senderAddressIsValid = true;
-   	}
+       if(CryptoJS.RIPEMD160("" + transactionData.senderPublicKey).toString() == senderAddress)
+       {
+           senderAddressIsValid = true;
+       }
 
     return addressesAreValidHex && senderAddressIsValid;
 }
 
 var handleResponse = (message) => {
-<<<<<<< HEAD
     // TODO: check if block sort is needed
     var receivedBlocks = JSON.parse(message.data).sort((b1, b2) => (b1.index - b2.index));
     var latestBlockReceived = receivedBlocks[receivedBlocks.length - 1];
@@ -400,28 +390,6 @@ var handleResponse = (message) => {
             replaceBlockchain(receivedBlocks);
         }
     }
-=======
-	var receivedBlocks = JSON.parse(message.data);
-	var latestBlockReceived = receivedBlocks[receivedBlocks.length - 1];
-	var ourLatestBlock = getLatestBlock();
-
-	if(latestBlockReceived.index > ourLatestBlock.index)
-	{
-		if(ourLatestBlock.blockHash == latestBlockReceived.previousBlockHash)
-		{
-			node.blocks.push(latestBlockReceived);
-			broadcast(responseLatestMsg());
-		}
-		else if(receivedBlocks.length == 1)
-		{
-			broadcast(blockchainMsg());
-		}
-		else
-		{
-			replaceBlockchain(receivedBlocks);
-		}
-	}
->>>>>>> c652e95e3c46fc589f231fa4b0bff282ea3f375e
 }
 
 var replaceBlockchain = (newBlockchain) => {
