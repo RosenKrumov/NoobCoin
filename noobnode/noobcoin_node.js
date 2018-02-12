@@ -278,26 +278,22 @@ var getBalanceOf = (address) => {
 }
 
 var processMiningJob = (minerData, minerAddress) => {
-    var lastBlock = getLatestBlock();
-    var block = node.miningJobs[minerAddress];
+    var minedBlock = node.miningJobs[minerAddress];
+    minedBlock.nonce = minerData.nonce;
+    minedBlock.dateCreated = minerData.dateCreated;
+    minedBlock.blockHash = minerData.blockHash;
 
-    block.nonce = minerData.nonce;
-    block.dateCreated = minerData.dateCreated;
-    block.blockHash = minerData.blockHash;
+    var calculatedBlockHash = CryptoJS.SHA256(
+        "" + minedBlock.blockDataHash + minedBlock.dateCreated + minedBlock.nonce).toString();
 
-    var blockHash = CryptoJS.SHA256("" + block.blockDataHash + block.nonce + block.dateCreated).toString();
-    //if(blockHash.substring(0, DIFFICULTY) == Array(DIFFICULTY + 1).join("0") &&
-    //    lastBlock.index + 1 == block.index &&
-    //    lastBlock.blockHash == block.previousBlockHash)
-    if (true)
-    {
-        node.blocks.push(block);
-        node.pendingTransactions =
-            node.pendingTransactions.filter(function(t) {
-                return block.transactions.filter(function(bt) {
-                    return bt.transactionHash == t.transactionHash;
-                }).length == 0;
-            });
+    console.log("Received a new block from miner");
+    console.log("correct block hash?: " + (minedBlock.blockHash == calculatedBlockHash));
+    console.log("Right difficulty?: " + isBlockDifficultyCorrect(calculatedBlockHash));
+
+    if (minedBlock.blockHash == calculatedBlockHash && isBlockDifficultyCorrect(calculatedBlockHash))
+
+        removeBlockTransactionsFromPending(minedBlock);
+        node.blocks.push(minedBlock);
 
         return true;
     }
@@ -305,6 +301,18 @@ var processMiningJob = (minerData, minerAddress) => {
     {
         return false;
     }
+}
+
+var isBlockDifficultyCorrect = (blockHash) => {
+    return blockHash.substring(0, DIFFICULTY) == Array(DIFFICULTY + 1).join("0"));
+}
+
+var removeBlockTransactionsFromPending = (newBlock) => {
+    node.pendingTransactions = node.pendingTransactions.filter(function(pendingTransaction) {
+        return newBlock.transactions.filter(function(blockTransaction) {
+            return blockTransaction.transactionHash == pendingTransaction.transactionHash;
+        }).length == 0;
+    });
 }
 
 var createPendingTransaction = (transactionData) => {
@@ -315,8 +323,8 @@ var createPendingTransaction = (transactionData) => {
     console.log("Addresses are valid?: " + addressesAreValid(transactionData));
 
     if (addressHasEnoughMoney(transactionData) &&
-            keysAreValid(transactionData) &&
-            addressesAreValid(transactionData)) {
+        keysAreValid(transactionData) &&
+        addressesAreValid(transactionData)) {
 
         return new Transaction(
             transactionData.fromAddress, transactionData.toAddress, transactionData.amount,
