@@ -281,6 +281,7 @@ var getBalanceOf = (address) => {
 }
 
 var processMiningJob = (minerData, minerAddress) => {
+    var lastBlock = getLatestBlock();
     var minedBlock = node.miningJobs[minerAddress];
     minedBlock.nonce = minerData.nonce;
     minedBlock.dateCreated = minerData.dateCreated;
@@ -293,7 +294,9 @@ var processMiningJob = (minerData, minerAddress) => {
     console.log("correct block hash?: " + (minedBlock.blockHash == calculatedBlockHash));
     console.log("Right difficulty?: " + isBlockDifficultyCorrect(calculatedBlockHash));
 
-    if (minedBlock.blockHash == calculatedBlockHash && isBlockDifficultyCorrect(calculatedBlockHash)) {
+    if (minedBlock.blockHash == calculatedBlockHash &&
+        isBlockDifficultyCorrect(calculatedBlockHash) &&
+        lastBlock.index + 1 == minedBlock.index) {
 
         removeBlockTransactionsFromPending(minedBlock);
         node.blocks.push(minedBlock);
@@ -342,8 +345,7 @@ var createPendingTransaction = (transactionData) => {
 }
 
 var addressHasEnoughMoney = (transactionData) => {
-    return true;
-    //return getBalanceOf(transactionData.fromAddress) >= transactionData.amount;
+    return getBalanceOf(transactionData.fromAddress) >= transactionData.amount;
 }
 
 var keysAreValid = (transactionData) => {
@@ -424,12 +426,10 @@ var blockchainIsValid = (blockchain) => {
     {
         var nextBlock = blockchain[i];
         var blockHash = CryptoJS.SHA256("" + nextBlock.blockDataHash + nextBlock.nonce + nextBlock.dateCreated).toString();
+        if (isBlockDifficultyCorrect(blockHash) &&
+            tempBlock.index + 1 == nextBlock.index &&
+            tempBlock.blockHash == nextBlock.previousBlockHash) {
 
-    //if(blockHash.substring(0, DIFFICULTY) == Array(DIFFICULTY + 1).join("0") &&
-    //    tempBlock.index + 1 == nextBlock.index &&
-    //    tempBlock.blockHash == nextBlock.previousBlockHash)
-        if(true)
-        {
             tempBlock = nextBlock;
         } else {
             return false;
