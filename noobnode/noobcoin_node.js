@@ -3,6 +3,7 @@ var CryptoJS = require("crypto-js");
 var express = require("express");
 var bodyParser = require('body-parser');
 var WebSocket = require("ws");
+var ecdsa = require("ecdsa");
 
 var http_port = process.env.HTTP_PORT || 3001;
 var p2p_port = process.env.P2P_PORT || 6001;
@@ -144,7 +145,6 @@ var initHttpServer = () => {
 
     app.get('/mining/get/:address', (req, res) => {
         if (!node.miningJobs[req.params.address]) {
-            // TODO: Add miner reward
             var block = new Block(
                 node.blocks[node.blocks.length - 1].index + 1,
                 node.pendingTransactions,
@@ -152,6 +152,11 @@ var initHttpServer = () => {
                 node.blocks[node.blocks.length - 1].blockHash,
                 0,
                 0);
+                
+            var rewardTransaction = newTransaction(
+					0, req.params.address, MINER_REWARD, new Date().toUTCString(), 0, [0, 0]);
+                
+            block.transactions.push(rewardTransaction);
 
             node.miningJobs[req.params.address] = block;
             res.status(200).send(JSON.stringify(block));
@@ -209,20 +214,39 @@ var initHttpServer = () => {
         }
     });
 
-    // TODO: Add transaction history endpoint for address
     app.get('/transactions/:address', (req,res) => {
         var address = req.params.address;
-        /*
-        if(allTransactions.some(t => t.hash == hash))
+        var transactions = [];
+        node.blocks.forEach(function(b) {
+        b.transactions.forEach(function(t) {
+            if (t.fromAddress == address ||
+            	t.toAddress == address) {
+				transactions.push(t);
+            }
+        });
+        
+        res.status(200).send(JSON.stringify(transactions));
+    });
+    
+    app.get('/transaction/:hash', (req,res) => {
+        var transactionHash = req.params.hash;
+        var response = null;
+        node.blocks.forEach(function(b) {
+        b.transactions.forEach(function(t) {
+            if (t.transactionHash == transactionHash) {
+				response = t;
+            }
+        });
+        
+        if(response == null)
         {
-            res.send(JSON.stringify(allTransactions.find(t => t.hash == hash)));
+        	res.status(404).send('Not found');
         }
         else
         {
-            res.status(404)
-                .send('Not found');
-        }
-        */
+	        res.status(200).send(JSON.stringify(response));
+        }    
+        
     });
 
     app.get('/peers', (req, res) => res.send(JSON.stringify(node.peers)));
@@ -270,7 +294,6 @@ var processBlock = (minerData, minerAddress) => {
 
     var blockHash = CryptoJS.SHA256("" + block.blockDataHash + block.nonce + block.dateCreated).toString();
     
-    // TODO: validation of block - DONE
     //if(blockHash.substring(0, DIFFICULTY) == Array(DIFFICULTY + 1).join("0") && 
     //	lastBlock.index + 1 == block.index &&
     //	lastBlock.blockHash == block.previousBlockHash)
@@ -295,14 +318,14 @@ var processBlock = (minerData, minerAddress) => {
 var createPendingTransaction = (transactionData) => {
     var hasMoneyForTransaction =
         addressHasEnoughMoney(transactionData.fromAddress, transactionData.amount);
-    var keysAreValid = validateKeys(transactionData.pkey, transactionData.signature);
-    var addressesAreValid = validateAddresses(transactionData.fromAddress, transactionData.toAddress);
+    var keysAreValid = validateKeys(transactionData);
+    var addressesAreValid = validateAddresses(transactionData);
 
     if(hasMoneyForTransaction && keysAreValid && addressesAreValid)
     {
         return new Transaction(
             transactionData.fromAddress, transactionData.toAddress, transactionData.amount,
-            transactionData.date, transactionData.pkey, transactionData.signature);
+            transactionData.dateReceived, transactionData.senderPublicKey, transactionData.senderSignature);
     }
     else
     {
@@ -317,18 +340,34 @@ var addressHasEnoughMoney = (address, amount) => {
 
 }
 
-var validateKeys = (pubKey, signature) => {
-    //TODO validation of public key and signature
-    return true;
+var validateKeys = (transactionData) => {
+	var shaMsg = CryptoJS.SHA256("" + transactionData.fromAddress + transactionData.toAddress + 
+								transactionData.amount + transactionData.dateReceived).toString();
+	var isValid = ecdsa.verify(shaMsg, transactionData.senderSignature, transactionData.senderPublicKey);
+    return isValid;
 }
 
-var validateAddresses = (fromAddress, toAddress) => {
-    // TODO: actual validation of address
-    return true;
+var validateAddresses = (transactionData) => {
+    var senderAddress = transactionData.fromAddress;
+    var recipientAddress = transactionData.toAddress;
+    var addressesAreValidHex = false;
+	var senderAddressIsValid = false;
+	
+    if(senderAddress.length > 0 && recipientAddress.length > 0 &&
+    	!isNaN(parseInt(senderAddress, 16)) && !isNaN(parseInt(recipientAddress, 16)))
+   	{
+   		addressesAreValidHex = true;
+   	}
+   	
+   	if(CryptoJS.RIPEMD160("" + transactionData.senderPublicKey).toString() == senderAddress)
+   	{
+   		senderAddressIsValid = true;
+   	}
+ 	  	
+    return addressesAreValidHex && senderAddressIsValid;
 }
 
 var handleResponse = (message) => {
-	// TODO: check if block sort is needed
 	var receivedBlocks = JSON.parse(message.data);
 	var latestBlockReceived = receivedBlocks[receivedBlocks.length - 1];
 	var ourLatestBlock = getLatestBlock();
