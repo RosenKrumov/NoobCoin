@@ -3,16 +3,19 @@ var CryptoJS = require("crypto-js");
 var express = require("express");
 var bodyParser = require('body-parser');
 var WebSocket = require("ws");
-var ecdsa = require("ecdsa");
+var EC = require('elliptic').ec;
+
+var ec = new EC('secp256k1');
 
 var http_port = process.env.HTTP_PORT || 3001;
 var p2p_port = process.env.P2P_PORT || 6001;
 var initialPeers = process.env.PEERS ? process.env.PEERS.split(',') : [];
 var node_name = process.env.NODE_NAME || "NoobCoin Node";
+
 var DIFFICULTY = 4;
 var FAUCET_ADDRESS = 'b825e4430d85fbca3f7d50cd82d1ab91dce9e287';
-var INITIAL_COINS = 100000000;
-var MINER_REWARD = 50;
+var FAUCET_COINS = 100000000;
+var MINER_REWARD = 10;
 
 var MessageTypes = {
     LATEST_BLOCK: 0,
@@ -290,7 +293,7 @@ var processMiningJob = (minerData, minerAddress) => {
     console.log("correct block hash?: " + (minedBlock.blockHash == calculatedBlockHash));
     console.log("Right difficulty?: " + isBlockDifficultyCorrect(calculatedBlockHash));
 
-    if (minedBlock.blockHash == calculatedBlockHash && isBlockDifficultyCorrect(calculatedBlockHash))
+    if (minedBlock.blockHash == calculatedBlockHash && isBlockDifficultyCorrect(calculatedBlockHash)) {
 
         removeBlockTransactionsFromPending(minedBlock);
         node.blocks.push(minedBlock);
@@ -304,7 +307,7 @@ var processMiningJob = (minerData, minerAddress) => {
 }
 
 var isBlockDifficultyCorrect = (blockHash) => {
-    return blockHash.substring(0, DIFFICULTY) == Array(DIFFICULTY + 1).join("0"));
+    return blockHash.substring(0, DIFFICULTY) == Array(DIFFICULTY + 1).join("0");
 }
 
 var removeBlockTransactionsFromPending = (newBlock) => {
@@ -318,13 +321,15 @@ var removeBlockTransactionsFromPending = (newBlock) => {
 var createPendingTransaction = (transactionData) => {
     console.log("Transaction submitted: " + JSON.stringify(transactionData));
 
-    console.log("Enough money?: " + addressHasEnoughMoney(transactionData));
-    console.log("Keys are valid?: " + keysAreValid(transactionData));
-    console.log("Addresses are valid?: " + addressesAreValid(transactionData));
+    var enoughMoney = addressHashEnoughMoney(transactionData);
+    var validKeys = keysAreValid(transactionData);
+    var validAddresses = addressesAreValid(transactionData);
 
-    if (addressHasEnoughMoney(transactionData) &&
-        keysAreValid(transactionData) &&
-        addressesAreValid(transactionData)) {
+    console.log("Enough money?: " + enoughMoney);
+    console.log("Keys are valid?: " + validKeys);
+    console.log("Addresses are valid?: " + validAddresses);
+
+    if (enoughMoney && validKeys && validAddresses) {
 
         return new Transaction(
             transactionData.fromAddress, transactionData.toAddress, transactionData.amount,
@@ -342,13 +347,17 @@ var addressHasEnoughMoney = (transactionData) => {
 }
 
 var keysAreValid = (transactionData) => {
-    return true;
-    /*
     var shaMsg = CryptoJS.SHA256("" + transactionData.fromAddress + transactionData.toAddress +
-                                transactionData.amount + transactionData.date).toString();
+                                 transactionData.amount + transactionData.date).toString();
 
-    return ecdsa.verify(shaMsg, transactionData.signature, transactionData.pkey);
-    */
+    var keyPair = { x: transactionData.pkey.substring(0, 64), y: transactionData.pkey.substring(64, 128) };
+    var pkey = ec.keyFromPublic(keyPair, 'hex');
+    var signature = { r: transactionData.signature[0], s: transactionData.signature[1] };
+
+    var isSignatureValid = pkey.verify(shaMsg, signature);
+
+    console.log("Signature valid? " + isSignatureValid);
+    return isSignatureValid;
 }
 
 var addressesAreValid = (transactionData) => {
@@ -445,7 +454,7 @@ var addPeer = (peerData) => {
 
 var startNode = () => {
     var genesisTransaction = new Transaction(
-        "0", FAUCET_ADDRESS, INITIAL_COINS, new Date().toISOString(), "0", ["0", "0"]);
+        "0", FAUCET_ADDRESS, FAUCET_COINS, new Date().toISOString(), "0", ["0", "0"]);
 
     var genesisBlock =
         new Block(0, [ genesisTransaction ], 0, 0, 0, new Date().toISOString());

@@ -80,14 +80,19 @@ def derive_pkey(skey_hex):
     skey = int(skey_hex, 16)
 
     pkey = (generator_secp256k1 * skey).pair()
-    #print("public key:", pkey)
+    print("public key:", pkey)
 
-    pkey_compressed = hex(pkey[0])[2:] + str(pkey[1] % 2)
+    # TODO: Eventually switch to compressed public key
+    #pkey_compressed = hex(pkey[0])[2:] + str(pkey[1] % 2)
     #print("public key (compressed):", pkey_compressed)
 
-    return pkey_compressed
+    #return pkey_compressed
 
-def pkey_to_addr(msg) :
+    pkey = "" + hex(pkey[0])[2:] + hex(pkey[1])[2:]
+
+    return pkey
+
+def pkey_to_addr(msg):
     hash_bytes = hashlib.new('ripemd160', msg.encode("utf8")).digest()
     return hash_bytes.hex()
 

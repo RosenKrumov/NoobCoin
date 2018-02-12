@@ -31,6 +31,7 @@ def send_transaction(url, wallet_addr_info, recipient_addr, amount):
 
     signature = sign(generator_secp256k1, int(wallet_addr_info.skey, 16), int(msg_hash.hexdigest(), 16))
 
+    headers = {'content-type': 'application/json'}
     data = {
         'fromAddress': wallet_addr_info.addr,
         'toAddress': recipient_addr,
@@ -39,7 +40,8 @@ def send_transaction(url, wallet_addr_info, recipient_addr, amount):
         'pkey': wallet_addr_info.pkey,
         'signature': [ hex(signature[0])[2:], hex(signature[1])[2:] ]
     };
-    headers = {'content-type': 'application/json'}
+
+    print("Transaction data:", data)
 
     try:
         response = requests.post(url = f"{url}/transactions/new", data=json.dumps(data), headers=headers);
