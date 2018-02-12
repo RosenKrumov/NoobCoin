@@ -19,17 +19,17 @@ html
                 p.text-left Previous block hash: #{block.previousBlockHash}
                 p.text-left Nonce: #{block.nonce}
                 a(href="/blocks/"+block.index+"/transactions"): p.text-right Txns: #{block.transactions.length}
-                p.text-right Reward: 50 NC
+                p.text-right Miner Reward: 10 NC
       div.row
         h3.text-center Block ##{block.index} transactions:
         div.col-sm-12.text-center
             ul.list-group
-               each transaction in block.transactions	
+               each transaction in block.transactions
                  li.list-group-item
                    a(href="/transactions/"+transaction.transactionHash): h3 Transaction ##{transaction.transactionHash}
                    p.text-right Date:#{transaction.dateReceived}
                    p.text-left From:#{transaction.fromAddress}
                    p.text-right To:#{transaction.toAddress}
                    p.text-right Amount:#{transaction.amount}
-					
-		
+
+

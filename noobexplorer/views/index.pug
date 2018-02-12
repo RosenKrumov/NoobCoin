@@ -10,24 +10,24 @@ html
         h3.text-center Latest blocks:
         div.col-sm-12.text-center
            ul.list-group
-            each block in data	
+            each block in data
               li.list-group-item
                 a(href="/blocks/"+block.index): h3 Block ##{block.index}
                 p.text-right Date:#{block.dateCreated}
                 p.text-left Hash:#{block.blockHash}
                 a(href="/blocks/"+block.index+"/transactions"): p.text-right Txns: #{block.transactions.length}
-                p.text-right Reward: 50 NC
+                p.text-right Miner Reward: 10 NC
       div.row
         h3.text-center Latest transactions:
         div.col-sm-12.text-center
             ul.list-group
              each block in data
-               each transaction in block.transactions	
+               each transaction in block.transactions
                  li.list-group-item
                    a(href="/transactions/"+transaction.transactionHash): h3 Transaction ##{transaction.transactionHash}
                    p.text-right Date:#{transaction.dateReceived}
                    p.text-left From:#{transaction.fromAddress}
                    p.text-right To:#{transaction.toAddress}
                    p.text-right Amount:#{transaction.amount}
-					
-		
+
+
