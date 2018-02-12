@@ -7,6 +7,7 @@ var ecdsa = require("ecdsa");
 
 var http_port = process.env.HTTP_PORT || 3001;
 var p2p_port = process.env.P2P_PORT || 6001;
+var initialPeers = process.env.PEERS ? process.env.PEERS.split(',') : [];
 var node_name = process.env.NODE_NAME || "NoobCoin Node";
 var DIFFICULTY = 4;
 var FAUCET_ADDRESS = 'b825e4430d85fbca3f7d50cd82d1ab91dce9e287';
@@ -14,9 +15,9 @@ var INITIAL_COINS = 100000000;
 var MINER_REWARD = 50;
 
 var MessageTypes = {
-	LATEST_BLOCK: 0,
-	ALL_BLOCKS: 1,
-	RESPONSE: 2
+    LATEST_BLOCK: 0,
+    ALL_BLOCKS: 1,
+    RESPONSE: 2
 };
 
 var sockets = [];
@@ -76,28 +77,28 @@ class Node {
 }
 
 var initP2PServer = () => {
-	var server = new WebSocket.Server({port: p2p_port});
-	server.on('connection', ws => initConnection(ws));
-	console.log('listening websocket p2p port on: ' + p2p_port);
+    var server = new WebSocket.Server({port: p2p_port});
+    server.on('connection', ws => initConnection(ws));
+    console.log('listening websocket p2p port on: ' + p2p_port);
 }
 
 var initConnection = (ws) => {
-	sockets.push(ws);
-	initMessageHandler(ws);
-	initErrorHandler(ws);
-	write(ws, blockchainLengthMsg());
+    sockets.push(ws);
+    initMessageHandler(ws);
+    initErrorHandler(ws);
+    write(ws, blockchainLengthMsg());
 }
 
 var initMessageHandler = (ws) => {
     ws.on('message', (data) => {
         var message = JSON.parse(data);
-        console.log('Received message' + JSON.stringify(message));
+        console.log('Received message: ' + JSON.stringify(message));
         switch (message.type) {
             case MessageTypes.LATEST_BLOCK:
-                write(ws, responseLatestMsg());
+                write(ws, responseLatestBlockMsg());
                 break;
             case MessageTypes.ALL_BLOCKS:
-                write(ws, responseChainMsg());
+                write(ws, responseBlockchainMsg());
                 break;
             case MessageTypes.RESPONSE:
                 handleResponse(message);
@@ -106,12 +107,16 @@ var initMessageHandler = (ws) => {
     });
 };
 
-var connectToPeer = (peer) => {
-	var ws = new WebSocket(peer);
-	ws.on('open', () => initConnection(ws));
-	ws.on('error', () => {
-		console.log('connection failed');
-	});
+var connectToPeers = (newPeers) => {
+    newPeers.forEach((peer) => {
+        node.peers.push(peer);
+
+        var ws = new WebSocket(peer);
+        ws.on('open', () => initConnection(ws));
+        ws.on('error', () => {
+            console.log('connection failed')
+        });
+    });
 }
 
 var initErrorHandler = (ws) => {
@@ -144,22 +149,18 @@ var initHttpServer = () => {
     });
 
     app.get('/mining/get/:address', (req, res) => {
-        if (!node.miningJobs[req.params.address]) {
+        var minerAddress = req.params.address;
+        if (!node.miningJobs[minerAddress]) {
             var block = new Block(
-                node.blocks[node.blocks.length - 1].index + 1,
-                node.pendingTransactions,
-                DIFFICULTY,
-                node.blocks[node.blocks.length - 1].blockHash,
-                0,
-                0);
-                
-            var rewardTransaction = newTransaction(
-					0, req.params.address, MINER_REWARD, new Date().toUTCString(), 0, [0, 0]);
-                
-            block.transactions.push(rewardTransaction);
+                node.blocks[node.blocks.length - 1].index + 1, node.pendingTransactions,
+                DIFFICULTY, node.blocks[node.blocks.length - 1].blockHash, 0, "0");
 
-            node.miningJobs[req.params.address] = block;
-            res.status(200).send(JSON.stringify(block));
+            var minerReward = new Transaction(
+                "0", minerAddress, MINER_REWARD, new Date().toUTCString(), "0", ["0", "0"]);
+            block.transactions.push(minerReward);
+
+            node.miningJobs[minerAddress] = block;
+            res.status(200).send(JSON.stringify({ "blockDataHash": block.blockDataHash }));
         }
         else
         {
@@ -174,12 +175,12 @@ var initHttpServer = () => {
             return;
         }
 
-        var isBlockAccepted = processBlock(req.body, req.params.address);
+        var isBlockAccepted = processMiningJob(req.body, req.params.address);
         delete node.miningJobs[req.params.address];
 
         if(isBlockAccepted)
         {
-        	broadcast(getLatestBlock());
+            broadcast(responseLatestBlockMsg());
             res.status(200).send('Block is accepted');
         }
         else
@@ -214,53 +215,51 @@ var initHttpServer = () => {
         }
     });
 
-    app.get('/transactions/:address', (req,res) => {
+    app.get('/history/:address', (req, res) => {
         var address = req.params.address;
         var transactions = [];
         node.blocks.forEach(function(b) {
-        b.transactions.forEach(function(t) {
-            if (t.fromAddress == address ||
-            	t.toAddress == address) {
-				transactions.push(t);
-            }
+            b.transactions.forEach(function(t) {
+                if (t.fromAddress == address || t.toAddress == address) {
+                    transactions.push(t);
+                }
+            });
         });
-        
+
         res.status(200).send(JSON.stringify(transactions));
     });
-    
+
     app.get('/transaction/:hash', (req,res) => {
         var transactionHash = req.params.hash;
         var response = null;
         node.blocks.forEach(function(b) {
-        b.transactions.forEach(function(t) {
-            if (t.transactionHash == transactionHash) {
-				response = t;
-            }
+            b.transactions.forEach(function(t) {
+                if (t.transactionHash == transactionHash) {
+                    response = t;
+                }
+            });
         });
-        
+
         if(response == null)
         {
-        	res.status(404).send('Not found');
+            res.status(404).send('Not found');
         }
         else
         {
-	        res.status(200).send(JSON.stringify(response));
-        }    
-        
+            res.status(200).send(JSON.stringify(response));
+        }
     });
 
     app.get('/peers', (req, res) => res.send(JSON.stringify(node.peers)));
     app.post('/peers', (req, res) => {
-		var status = addPeer(req.body.data);
-        if(status == true)
+        var status = addPeer(req.body.data);
+        if(status)
         {
-        	res.status(200)
-        		.send('Peer added');
+            res.status(200).send('Peer added');
         }
         else
         {
-        	res.status(409)
-        		.send('Peer is existing');
+            res.status(409).send('Peer is existing');
         }
     });
 
@@ -284,8 +283,8 @@ var getBalanceOf = (address) => {
     return balance;
 }
 
-var processBlock = (minerData, minerAddress) => {
-	var lastBlock = getLatestBlock();
+var processMiningJob = (minerData, minerAddress) => {
+    var lastBlock = getLatestBlock();
     var block = node.miningJobs[minerAddress];
 
     block.nonce = minerData.nonce;
@@ -293,10 +292,9 @@ var processBlock = (minerData, minerAddress) => {
     block.blockHash = minerData.blockHash;
 
     var blockHash = CryptoJS.SHA256("" + block.blockDataHash + block.nonce + block.dateCreated).toString();
-    
-    //if(blockHash.substring(0, DIFFICULTY) == Array(DIFFICULTY + 1).join("0") && 
-    //	lastBlock.index + 1 == block.index &&
-    //	lastBlock.blockHash == block.previousBlockHash)
+    //if(blockHash.substring(0, DIFFICULTY) == Array(DIFFICULTY + 1).join("0") &&
+    //    lastBlock.index + 1 == block.index &&
+    //    lastBlock.blockHash == block.previousBlockHash)
     if (true)
     {
         node.blocks.push(block);
@@ -341,9 +339,9 @@ var addressHasEnoughMoney = (address, amount) => {
 }
 
 var validateKeys = (transactionData) => {
-	var shaMsg = CryptoJS.SHA256("" + transactionData.fromAddress + transactionData.toAddress + 
-								transactionData.amount + transactionData.dateReceived).toString();
-	var isValid = ecdsa.verify(shaMsg, transactionData.senderSignature, transactionData.senderPublicKey);
+    var shaMsg = CryptoJS.SHA256("" + transactionData.fromAddress + transactionData.toAddress +
+                                transactionData.amount + transactionData.dateReceived).toString();
+    var isValid = ecdsa.verify(shaMsg, transactionData.senderSignature, transactionData.senderPublicKey);
     return isValid;
 }
 
@@ -351,95 +349,95 @@ var validateAddresses = (transactionData) => {
     var senderAddress = transactionData.fromAddress;
     var recipientAddress = transactionData.toAddress;
     var addressesAreValidHex = false;
-	var senderAddressIsValid = false;
-	
+    var senderAddressIsValid = false;
+
     if(senderAddress.length > 0 && recipientAddress.length > 0 &&
-    	!isNaN(parseInt(senderAddress, 16)) && !isNaN(parseInt(recipientAddress, 16)))
-   	{
-   		addressesAreValidHex = true;
-   	}
-   	
-   	if(CryptoJS.RIPEMD160("" + transactionData.senderPublicKey).toString() == senderAddress)
-   	{
-   		senderAddressIsValid = true;
-   	}
- 	  	
+        !isNaN(parseInt(senderAddress, 16)) && !isNaN(parseInt(recipientAddress, 16)))
+       {
+           addressesAreValidHex = true;
+       }
+
+       if(CryptoJS.RIPEMD160("" + transactionData.senderPublicKey).toString() == senderAddress)
+       {
+           senderAddressIsValid = true;
+       }
+
     return addressesAreValidHex && senderAddressIsValid;
 }
 
 var handleResponse = (message) => {
-	var receivedBlocks = JSON.parse(message.data);
-	var latestBlockReceived = receivedBlocks[receivedBlocks.length - 1];
-	var ourLatestBlock = getLatestBlock();
-	
-	if(latestBlockReceived.index > ourLatestBlock.index)
-	{
-		if(ourLatestBlock.blockHash == latestBlockReceived.previousBlockHash)
-		{
-			node.blocks.push(latestBlockReceived);
-			broadcast(responseLatestMsg());
-		}
-		else if(receivedBlocks.length == 1)
-		{
-			broadcast(blockchainMsg());
-		}
-		else
-		{
-			replaceBlockchain(receivedBlocks);
-		}
-	}
+    // TODO: check if block sort is needed
+    var receivedBlocks = JSON.parse(message.data).sort((b1, b2) => (b1.index - b2.index));
+    var latestBlockReceived = receivedBlocks[receivedBlocks.length - 1];
+
+    var ourLatestBlock = getLatestBlock();
+    console.log("our latest block: " + JSON.stringify(ourLatestBlock));
+    console.log("Received latest block: " + JSON.stringify(latestBlockReceived));
+
+    if(latestBlockReceived.index > ourLatestBlock.index)
+    {
+        if(ourLatestBlock.blockHash == latestBlockReceived.previousBlockHash)
+        {
+            node.blocks.push(latestBlockReceived);
+            broadcast(responseLatestBlockMsg());
+        }
+        else if(receivedBlocks.length == 1)
+        {
+            broadcast(blockchainMsg());
+        }
+        else
+        {
+            replaceBlockchain(receivedBlocks);
+        }
+    }
 }
 
 var replaceBlockchain = (newBlockchain) => {
-	if (blockchainIsValid(newBlockchain) && newBlockchain.length > node.blocks.length) {
-		node.blocks = newBlockchain;
-		broadcast(responseLatestMsg());
-	}
+    if (blockchainIsValid(newBlockchain) && newBlockchain.length > node.blocks.length) {
+        node.blocks = newBlockchain;
+        broadcast(responseLatestBlockMsg());
+    }
 }
 
 var blockchainIsValid = (blockchain) => {
-	if(JSON.stringify(blockchain[0]) !== JSON.stringify(node.blocks[0]))
-	{
-		return false;
-	}
-	
-	var tempBlock = blockchain[0];
-	for (int i = 1; i < blockchain.length; i++)
-	{
-		var nextBlock = blockchain[i];
-	    var blockHash = CryptoJS.SHA256("" + nextBlock.blockDataHash + nextBlock.nonce + nextBlock.dateCreated).toString();
-    
-    //if(blockHash.substring(0, DIFFICULTY) == Array(DIFFICULTY + 1).join("0") && 
-    //	tempBlock.index + 1 == nextBlock.index &&
-    //	tempBlock.blockHash == nextBlock.previousBlockHash)
-		if(true) 
-		{
-			tempBlock = nextBlock;
-		} else {
-			return false;
-		}
-	}
-	
-	return true;
+    return true;
+
+    var tempBlock = blockchain[0];
+    for (var i = 1; i < blockchain.length; i++)
+    {
+        var nextBlock = blockchain[i];
+        var blockHash = CryptoJS.SHA256("" + nextBlock.blockDataHash + nextBlock.nonce + nextBlock.dateCreated).toString();
+
+    //if(blockHash.substring(0, DIFFICULTY) == Array(DIFFICULTY + 1).join("0") &&
+    //    tempBlock.index + 1 == nextBlock.index &&
+    //    tempBlock.blockHash == nextBlock.previousBlockHash)
+        if(true)
+        {
+            tempBlock = nextBlock;
+        } else {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 var addPeer = (peerData) => {
-	var url = peerData.url;
-	if(!node.peers.includes(url))
-	{
-		node.peers.push(url);
-		connectToPeer(url);
-		return true;
-	}
-	else
-	{
-		return false;
-	}
+    var url = peerData.url;
+    if(!node.peers.includes(url))
+    {
+        connectToPeers([ url ]);
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 }
 
 var startNode = () => {
     var genesisTransaction = new Transaction(
-        "0", FAUCET_ADDRESS, INITIAL_COINS, new Date().toUTCString(), "0", "0");
+        "0", FAUCET_ADDRESS, INITIAL_COINS, new Date().toUTCString(), "0", ["0", "0"]);
 
     var genesisBlock =
         new Block(0, [ genesisTransaction ], 0, 0, 0, new Date().toUTCString());
@@ -451,24 +449,25 @@ var getLatestBlock = () => node.blocks[node.blocks.length - 1];
 
 var blockchainLengthMsg = () => ({'type': MessageTypes.LATEST_BLOCK});
 var blockchainMsg = () => ({'type': MessageTypes.ALL_BLOCKS});
-var responseLatestMsg = () => ({
-	'type': MessageTypes.RESPONSE,
-	'data': JSON.stringify(getLatestBlock())
+var responseLatestBlockMsg = () => ({
+    'type': MessageTypes.RESPONSE,
+    'data': JSON.stringify([getLatestBlock()])
 });
 
-var responseChainMsg() = () => ({
-	'type': MessageTypes.RESPONSE,
-	'data': JSON.stringify(node.blocks())
+var responseBlockchainMsg = () => ({
+    'type': MessageTypes.RESPONSE,
+    'data': JSON.stringify(node.blocks)
 });
 
 var write = (ws, message) => {
-	ws.send(JSON.stringify(message));
+    ws.send(JSON.stringify(message));
 };
 
 var broadcast = (message) => {
-	sockets.forEach(s => write(s, message));
+    sockets.forEach(s => write(s, message));
 };
 
 startNode();
+connectToPeers(initialPeers);
 initHttpServer();
 initP2PServer();
