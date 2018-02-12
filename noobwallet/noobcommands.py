@@ -78,4 +78,31 @@ def make_transaction():
     amount = int(input())
 
     noobcomms.send_transaction(node_url, wallet_addr_info, recipient_addr, amount)
+	
+def request_coins(url: str, address: str):
+	credentials = None
+    try:
+        credentials = NoobCredentials.read()
+    except ValueError as e:
+        print(e)
+		
+	print("Which address index to use? ", end="")
+    addr_index = int(input())
+		
+	noobaddr_info = noobcrypto.get_address_info(credentials, addr_index)
+	print(f"Requesting coins to faucet from address {addr_index}: {noobaddr_info.addr}")
+		
+	try:
+        response = requests.post(url = f"{url}/request", data = {'address': f"noobaddr_info.addr"});
+    except Exception as e:
+        print('Failed to establish connection with faucet. Aborting')
+        return False
+
+    if response.status_code == 200:
+        print("Successfully requested coins from faucet")
+    else:
+        print(f"Failed to request coins from faucet. Server status code {response.status_code}")
+
+    return response.status_code == 200
+
 
