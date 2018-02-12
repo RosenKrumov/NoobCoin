@@ -12,8 +12,8 @@ def parse_args(args):
         noobcommands.make_transaction()
     elif args.addresses != None:
         noobcommands.show_addresses(args.addresses)
-	elif args.request:
-		noobcommands.request_coins(args.request)
+    elif args.request:
+        noobcommands.request_coins(args.request)
 
 if __name__ == '__main__':
     from argparse import ArgumentParser
@@ -24,7 +24,7 @@ if __name__ == '__main__':
     parser.add_argument('-b', '--balance', action='store_true', help='see balance')
     parser.add_argument('-s', '--send', action='store_true', help='make a transaction')
     parser.add_argument('-a', '--addresses', type=int, help='show addresses <count>')
-	parser.add_argument('-r', '--request', type=str, help='faucet url to request coins from')
+    parser.add_argument('-r', '--request', type=str, help='faucet url to request coins from')
 
     args = parser.parse_args()
 
