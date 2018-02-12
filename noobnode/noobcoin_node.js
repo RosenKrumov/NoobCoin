@@ -2,14 +2,26 @@
 var CryptoJS = require("crypto-js");
 var express = require("express");
 var bodyParser = require('body-parser');
+var WebSocket = require("ws");
 
 var http_port = process.env.HTTP_PORT || 3001;
+var p2p_port = process.env.P2P_PORT || 6001;
 var node_name = process.env.NODE_NAME || "NoobCoin Node";
 var DIFFICULTY = 4;
 var FAUCET_ADDRESS = 'b825e4430d85fbca3f7d50cd82d1ab91dce9e287';
 var INITIAL_COINS = 100000000;
+var MINER_REWARD = 50;
+
+var MessageTypes = {
+	LATEST_BLOCK: 0,
+	ALL_BLOCKS: 1,
+	RESPONSE: 2
+};
+
+var sockets = [];
 
 var node = {};
+
 
 class Transaction {
     constructor(fromAddress, toAddress, amount, dateReceived, senderPublicKey, senderSignature) {
@@ -62,8 +74,57 @@ class Node {
     }
 }
 
+var initP2PServer = () => {
+	var server = new WebSocket.Server({port: p2p_port});
+	server.on('connection', ws => initConnection(ws));
+	console.log('listening websocket p2p port on: ' + p2p_port);
+}
+
+var initConnection = (ws) => {
+	sockets.push(ws);
+	initMessageHandler(ws);
+	initErrorHandler(ws);
+	write(ws, blockchainLengthMsg());
+}
+
+var initMessageHandler = (ws) => {
+    ws.on('message', (data) => {
+        var message = JSON.parse(data);
+        console.log('Received message' + JSON.stringify(message));
+        switch (message.type) {
+            case MessageTypes.LATEST_BLOCK:
+                write(ws, responseLatestMsg());
+                break;
+            case MessageTypes.ALL_BLOCKS:
+                write(ws, responseChainMsg());
+                break;
+            case MessageTypes.RESPONSE:
+                handleResponse(message);
+                break;
+        }
+    });
+};
+
+var connectToPeer = (peer) => {
+	var ws = new WebSocket(peer);
+	ws.on('open', () => initConnection(ws));
+	ws.on('error', () => {
+		console.log('connection failed');
+	});
+}
+
+var initErrorHandler = (ws) => {
+    var closeConnection = (ws) => {
+        console.log('connection failed to peer: ' + ws.url);
+        sockets.splice(sockets.indexOf(ws), 1);
+    };
+    ws.on('close', () => closeConnection(ws));
+    ws.on('error', () => closeConnection(ws));
+};
+
 var initHttpServer = () => {
     var app = express();
+
     app.use(bodyParser.json());
 
     app.get('/info', (req, res) => res.send(JSON.stringify(node)));
@@ -113,6 +174,7 @@ var initHttpServer = () => {
 
         if(isBlockAccepted)
         {
+        	broadcast(getLatestBlock());
             res.status(200).send('Block is accepted');
         }
         else
@@ -163,14 +225,19 @@ var initHttpServer = () => {
         */
     });
 
-    // TODO: Do with web sockets similar to naivechain
-    app.post('/blocks/notify', (req, res) => {
-        //TODO
-    });
-
-    app.get('/peers', (req, res) => res.send(JSON.stringify(node.peers))); //TODO 409 code
+    app.get('/peers', (req, res) => res.send(JSON.stringify(node.peers)));
     app.post('/peers', (req, res) => {
-        //TODO
+		var status = addPeer(req.body.data);
+        if(status == true)
+        {
+        	res.status(200)
+        		.send('Peer added');
+        }
+        else
+        {
+        	res.status(409)
+        		.send('Peer is existing');
+        }
     });
 
     app.listen(http_port, () => console.log('Listening http on port: ' + http_port));
@@ -194,6 +261,7 @@ var getBalanceOf = (address) => {
 }
 
 var processBlock = (minerData, minerAddress) => {
+	var lastBlock = getLatestBlock();
     var block = node.miningJobs[minerAddress];
 
     block.nonce = minerData.nonce;
@@ -201,8 +269,11 @@ var processBlock = (minerData, minerAddress) => {
     block.blockHash = minerData.blockHash;
 
     var blockHash = CryptoJS.SHA256("" + block.blockDataHash + block.nonce + block.dateCreated).toString();
-    // TODO: validation of block
-    //if(blockHash.substring(0, DIFFICULTY) == Array(DIFFICULTY + 1).join("0"))
+    
+    // TODO: validation of block - DONE
+    //if(blockHash.substring(0, DIFFICULTY) == Array(DIFFICULTY + 1).join("0") && 
+    //	lastBlock.index + 1 == block.index &&
+    //	lastBlock.blockHash == block.previousBlockHash)
     if (true)
     {
         node.blocks.push(block);
@@ -240,9 +311,10 @@ var createPendingTransaction = (transactionData) => {
 }
 
 var addressHasEnoughMoney = (address, amount) => {
-    // TODO
+    var balance = getBalanceOf(address);
+    //return (balance >= amount);
     return true;
-    //return (node.balances['address'] >= amount);
+
 }
 
 var validateKeys = (pubKey, signature) => {
@@ -255,12 +327,75 @@ var validateAddresses = (fromAddress, toAddress) => {
     return true;
 }
 
-var synchronizeWithPeer = () => {
+var handleResponse = (message) => {
+	// TODO: check if block sort is needed
+	var receivedBlocks = JSON.parse(message.data);
+	var latestBlockReceived = receivedBlocks[receivedBlocks.length - 1];
+	var ourLatestBlock = getLatestBlock();
+	
+	if(latestBlockReceived.index > ourLatestBlock.index)
+	{
+		if(ourLatestBlock.blockHash == latestBlockReceived.previousBlockHash)
+		{
+			node.blocks.push(latestBlockReceived);
+			broadcast(responseLatestMsg());
+		}
+		else if(receivedBlocks.length == 1)
+		{
+			broadcast(blockchainMsg());
+		}
+		else
+		{
+			replaceBlockchain(receivedBlocks);
+		}
+	}
+}
 
+var replaceBlockchain = (newBlockchain) => {
+	if (blockchainIsValid(newBlockchain) && newBlockchain.length > node.blocks.length) {
+		node.blocks = newBlockchain;
+		broadcast(responseLatestMsg());
+	}
+}
+
+var blockchainIsValid = (blockchain) => {
+	if(JSON.stringify(blockchain[0]) !== JSON.stringify(node.blocks[0]))
+	{
+		return false;
+	}
+	
+	var tempBlock = blockchain[0];
+	for (int i = 1; i < blockchain.length; i++)
+	{
+		var nextBlock = blockchain[i];
+	    var blockHash = CryptoJS.SHA256("" + nextBlock.blockDataHash + nextBlock.nonce + nextBlock.dateCreated).toString();
+    
+    //if(blockHash.substring(0, DIFFICULTY) == Array(DIFFICULTY + 1).join("0") && 
+    //	tempBlock.index + 1 == nextBlock.index &&
+    //	tempBlock.blockHash == nextBlock.previousBlockHash)
+		if(true) 
+		{
+			tempBlock = nextBlock;
+		} else {
+			return false;
+		}
+	}
+	
+	return true;
 }
 
 var addPeer = (peerData) => {
-
+	var url = peerData.url;
+	if(!node.peers.includes(url))
+	{
+		node.peers.push(url);
+		connectToPeer(url);
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 var startNode = () => {
@@ -273,5 +408,28 @@ var startNode = () => {
     node = new Node(node_name, genesisBlock);
 }
 
+var getLatestBlock = () => node.blocks[node.blocks.length - 1];
+
+var blockchainLengthMsg = () => ({'type': MessageTypes.LATEST_BLOCK});
+var blockchainMsg = () => ({'type': MessageTypes.ALL_BLOCKS});
+var responseLatestMsg = () => ({
+	'type': MessageTypes.RESPONSE,
+	'data': JSON.stringify(getLatestBlock())
+});
+
+var responseChainMsg() = () => ({
+	'type': MessageTypes.RESPONSE,
+	'data': JSON.stringify(node.blocks())
+});
+
+var write = (ws, message) => {
+	ws.send(JSON.stringify(message));
+};
+
+var broadcast = (message) => {
+	sockets.forEach(s => write(s, message));
+};
+
 startNode();
 initHttpServer();
+initP2PServer();
