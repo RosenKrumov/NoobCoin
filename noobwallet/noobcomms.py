@@ -24,7 +24,7 @@ def send_transaction(url, wallet_addr_info, recipient_addr, amount):
     if not is_valid_addr(recipient_addr):
         raise ValueError("Invalid recipient address provided")
 
-    date = str(datetime.utcnow())
+    date = str(datetime.utcnow().isoformat())
 
     msg_hash = hashlib.sha256()
     msg_hash.update(f'{wallet_addr_info.addr}{recipient_addr}{amount}{date}'.encode())
