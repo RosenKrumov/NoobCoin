@@ -108,6 +108,8 @@ var initMessageHandler = (ws) => {
 
 var connectToPeers = (newPeers) => {
     newPeers.forEach((peer) => {
+        node.peers.push(peer);
+
         var ws = new WebSocket(peer);
         ws.on('open', () => initConnection(ws));
         ws.on('error', () => {
@@ -146,18 +148,18 @@ var initHttpServer = () => {
     });
 
     app.get('/mining/get/:address', (req, res) => {
-        if (!node.miningJobs[req.params.address]) {
-            // TODO: Add miner reward
+        var minerAddress = req.params.address;
+        if (!node.miningJobs[minerAddress]) {
             var block = new Block(
-                node.blocks[node.blocks.length - 1].index + 1,
-                node.pendingTransactions,
-                DIFFICULTY,
-                node.blocks[node.blocks.length - 1].blockHash,
-                0,
-                0);
+                node.blocks[node.blocks.length - 1].index + 1, node.pendingTransactions,
+                DIFFICULTY, node.blocks[node.blocks.length - 1].blockHash, 0, "0");
 
-            node.miningJobs[req.params.address] = block;
-            res.status(200).send(JSON.stringify(block));
+            var minerReward = new Transaction(
+                "0", minerAddress, MINER_REWARD, new Date().toUTCString(), "0", ["0", "0"]);
+            block.transactions.push(minerReward);
+
+            node.miningJobs[minerAddress] = block;
+            res.status(200).send(JSON.stringify({ "blockDataHash": block.blockDataHash }));
         }
         else
         {
@@ -172,7 +174,7 @@ var initHttpServer = () => {
             return;
         }
 
-        var isBlockAccepted = processBlock(req.body, req.params.address);
+        var isBlockAccepted = processMiningJob(req.body, req.params.address);
         delete node.miningJobs[req.params.address];
 
         if(isBlockAccepted)
@@ -230,16 +232,14 @@ var initHttpServer = () => {
 
     app.get('/peers', (req, res) => res.send(JSON.stringify(node.peers)));
     app.post('/peers', (req, res) => {
-		var status = addPeer(req.body.data);
-        if(status == true)
+        var status = addPeer(req.body.data);
+        if(status)
         {
-        	res.status(200)
-        		.send('Peer added');
+            res.status(200).send('Peer added');
         }
         else
         {
-        	res.status(409)
-        		.send('Peer is existing');
+            res.status(409).send('Peer is existing');
         }
     });
 
@@ -263,7 +263,7 @@ var getBalanceOf = (address) => {
     return balance;
 }
 
-var processBlock = (minerData, minerAddress) => {
+var processMiningJob = (minerData, minerAddress) => {
     var lastBlock = getLatestBlock();
     var block = node.miningJobs[minerAddress];
 
@@ -391,8 +391,7 @@ var addPeer = (peerData) => {
     var url = peerData.url;
     if(!node.peers.includes(url))
     {
-        node.peers.push(url);
-        connectToPeer(url);
+        connectToPeers([ url ]);
         return true;
     }
     else
@@ -403,7 +402,7 @@ var addPeer = (peerData) => {
 
 var startNode = () => {
     var genesisTransaction = new Transaction(
-        "0", FAUCET_ADDRESS, INITIAL_COINS, new Date().toUTCString(), "0", "0");
+        "0", FAUCET_ADDRESS, INITIAL_COINS, new Date().toUTCString(), "0", ["0", "0"]);
 
     var genesisBlock =
         new Block(0, [ genesisTransaction ], 0, 0, 0, new Date().toUTCString());
