@@ -150,22 +150,16 @@ var initHttpServer = () => {
 
     app.get('/mining/get/:address', (req, res) => {
         var minerAddress = req.params.address;
-        if (!node.miningJobs[minerAddress]) {
-            var block = new Block(
-                node.blocks[node.blocks.length - 1].index + 1, node.pendingTransactions,
-                DIFFICULTY, node.blocks[node.blocks.length - 1].blockHash, 0, "0");
+        var block = new Block(
+            node.blocks[node.blocks.length - 1].index + 1, node.pendingTransactions.slice(),
+            DIFFICULTY, node.blocks[node.blocks.length - 1].blockHash, 0, "0");
 
-            var minerReward = new Transaction(
-                "0", minerAddress, MINER_REWARD, new Date().toISOString(), "0", ["0", "0"]);
-            block.transactions.push(minerReward);
+        var minerReward = new Transaction(
+            "0", minerAddress, MINER_REWARD, new Date().toISOString(), "0", ["0", "0"]);
+        block.transactions.push(minerReward);
 
-            node.miningJobs[minerAddress] = block;
-            res.status(200).send(JSON.stringify({ "blockDataHash": block.blockDataHash }));
-        }
-        else
-        {
-            res.status(400).send('miner already has a mining job');
-        }
+        node.miningJobs[minerAddress] = block;
+        res.status(200).send(JSON.stringify({ "blockDataHash": block.blockDataHash }));
     });
 
     app.post('/mining/submit/:address', (req, res) => {
