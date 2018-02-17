@@ -11,7 +11,8 @@ Rosen Krumov - https://github.com/RosenKrumov
 This is the component responsible for storing the blockchain and synchronizing with other nodes.
 
 ### REST Endpoints
-TODO
+{host}/mining/get/:address - get a block for mining with the given address as a miner address to reward  
+{host}/mining/submit/:address - submit the mined block after getting it first
 
 ## Wallet
 The software responsible for generating private/public key pairs based on HMAC key derivation and ECDSA cryptography.
