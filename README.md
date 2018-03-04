@@ -12,7 +12,8 @@ This is the component responsible for storing the blockchain and synchronizing w
 
 ### REST Endpoints
 {host}/info - all the information available about the node  
-{host}/blocks - all the blocks known by the node  
+{host}/blocks - all the blocks known by the node 
+{host}/balance/:address - the amount of Noob Coins a given address has  
 {host}/mining/get/:address - get a block for mining with the given address as a miner address to reward  
 {host}/mining/submit/:address - submit the mined block after getting it first
 
