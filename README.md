@@ -1,9 +1,9 @@
 # NoobCoin
 A complete blockchain system based on Python & Javascript
 
-Contributors:  
-Preslav Mihaylov - https://github.com/PreslavMihaylov  
-Rosen Krumov - https://github.com/RosenKrumov
+# Contributors:  
+### [Preslav Mihaylov](https://github.com/PreslavMihaylov)  
+### [Rosen Krumov](https://github.com/RosenKrumov)  
 
 # Components
 
