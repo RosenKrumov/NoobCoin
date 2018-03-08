@@ -24,7 +24,7 @@ The software responsible for generating private/public key pairs based on HMAC k
 A variation of the wallet, which provides test noobcoins to people requesting them.
 
 ### REST Endpoints
-TODO
+{host}/request - request NoobCoins by providing your address
 
 ## Miner
 The software which calculates the block hash with given difficulty based on the SHA256 hash algorithm.
