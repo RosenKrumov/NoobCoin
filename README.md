@@ -16,6 +16,7 @@ This is the component responsible for storing the blockchain and synchronizing w
 {host}/balance/:address - the amount of Noob Coins a given address has  
 {host}/mining/get/:address - get a block for mining with the given address as a miner address to reward  
 {host}/mining/submit/:address - submit the mined block after getting it first
+{host}/peers - information about the peers this node is connected to
 
 ## Wallet
 The software responsible for generating private/public key pairs based on HMAC key derivation and ECDSA cryptography.
