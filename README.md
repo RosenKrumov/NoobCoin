@@ -17,6 +17,7 @@ This is the component responsible for storing the blockchain and synchronizing w
 {host}/mining/get/:address - get a block for mining with the given address as a miner address to reward  
 {host}/mining/submit/:address - submit the mined block after getting it first  
 {host}/transactions/new - publish a new transaction to be included in the next block
+{host}/transactions/:hash - info about a particular transaction, given the tx hash  
 {host}/peers - information about the peers this node is connected to  
 
 ## Wallet
